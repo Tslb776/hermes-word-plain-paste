@@ -1,0 +1,16 @@
+{
+  "name": "hermes-word-plain-paste",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Hermes Desktop runtime plugin that prefers Word clipboard text over image representations on macOS.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": { "test": "node tests/run-dom.mjs", "test:electron": "node tests/run.mjs" },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "jsdom": "29.1.1",
+    "react": "19.2.5",
+    "react-dom": "19.2.5"
+  }
+}
