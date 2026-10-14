@@ -12,13 +12,15 @@
 
 ## 安装
 
-在上一级文件夹中双击 `install.command`。默认安装位置：
+在上一级文件夹中打开终端，运行 `zsh install.command`。默认安装位置：
 
 ```text
 ~/.hermes/desktop-plugins/word-plain-paste/plugin.js
 ```
 
 使用自定义 Hermes 主目录时，请先设置 `HERMES_HOME`，或手动把本文件夹复制到该主目录的 `desktop-plugins/` 下。文件夹名必须是 `word-plain-paste`。
+
+升级时先使用旧安装包卸载，再安装新版本。若改过插件文件，请先备份并移走原插件目录；安装器不会覆盖不同版本的文件。
 
 Hermes 会监测插件目录并自动加载。如果状态栏按钮没有出现，在 Hermes 按 `⌘K`，搜索 **Reload desktop plugins** 并执行，或重新打开 Hermes。此插件跟随状态栏组件挂载；状态栏未显示时，修复监听器也不会运行。
 

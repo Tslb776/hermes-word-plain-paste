@@ -1,4 +1,4 @@
-/** Word Plain Text Paste v1.0.0 — MIT. Hermes Desktop runtime plugin. */
+/** Word Plain Text Paste v1.0.1 — MIT. Hermes Desktop runtime plugin. */
 import { useEffect, useState } from 'react'
 import { jsx } from 'react/jsx-runtime'
 
@@ -29,7 +29,7 @@ export function textForMixedPaste(clipboard) {
 export function installPasteFilter(win, onConverted = () => {}) {
   const forwarded = new WeakSet()
   function onPaste(event) {
-    if (forwarded.has(event) || event.defaultPrevented) return
+    if (forwarded.has(event) || event.defaultPrevented || !event.cancelable) return
     const editor = event.target?.closest?.(EDITOR_SELECTOR)
     if (!editor || editor.getAttribute('aria-disabled') === 'true') return
     let text
@@ -51,11 +51,14 @@ export function installPasteFilter(win, onConverted = () => {}) {
       return
     }
     forwarded.add(replacement)
+    editor.dispatchEvent(replacement)
+    // A synthetic paste has no native insertion default. Only suppress the
+    // original after the host has accepted the replacement. If the editor's
+    // handler is absent or rejects synthetic events, retain its native path.
+    if (!replacement.defaultPrevented) return
     event.preventDefault()
     event.stopImmediatePropagation()
-    editor.dispatchEvent(replacement)
-    // Hermes consumes the forwarded event. Count only accepted conversions.
-    if (replacement.defaultPrevented) onConverted()
+    onConverted()
   }
   win.addEventListener('paste', onPaste, true)
   return () => win.removeEventListener('paste', onPaste, true)
