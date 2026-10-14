@@ -15,4 +15,4 @@ for filename in plugin.js README.md LICENSE; do
   cp "$source_dir/$filename" "$target_dir/$filename"
 done
 print -- "已安装 Word 文字粘贴修复：$target_dir"
-print -- "回到 Hermes，查看状态栏的「Word 文字粘贴 ✓」。如果没有出现，按 ⌘K，执行 Reload desktop plugins。"
+print -- "回到 Hermes，查看状态栏的「Word 转文字 · 用一次」，仅在需要时点击一次。如果没有出现，按 ⌘K，执行 Reload desktop plugins。"

@@ -1,11 +1,11 @@
 # Validation
 
-Version: 1.0.1. Date: 2026-10-14.
+Version: 1.1.0. Date: 2026-10-15.
 
 ## Automated
 
 - JavaScript syntax check and zsh syntax checks passed.
-- All 28 React/jsdom event-routing and lifecycle checks passed.
+- All 37 React/jsdom event-routing, image-preservation and one-shot lifecycle checks passed.
 - Install scripts passed clean installation, repeated installation, modified-file refusal, safe uninstall, and preservation of unrelated files.
 
 These tests model the host's image-first paste branch and draft/undo callbacks. Clipboard constructors and the DOM editing command are test doubles. They verify routing and lifecycle, rather than proving OS clipboard compatibility on every Hermes version.
@@ -35,3 +35,13 @@ Environment: macOS, Microsoft Word for Mac, Hermes Desktop v0.19.1.
 Two added regression tests first failed on 1.0.0: an unhandled forwarded event swallowed the original paste, and a non-cancelable original event caused duplicate handling. Version 1.0.1 forwards first and cancels the original only after the host prevents the replacement's default; it skips non-cancelable originals. Both regressions and all existing checks pass after the fix.
 
 The separate real Word → Hermes verification above was performed on 1.0.0. Version 1.0.1 preserves the same accepted-event path and adds failure fallbacks; the revised version's automated results do not imply fresh manual verification unless recorded separately.
+
+## 1.1.0 image-paste regression
+
+The user reported that image pasting was failing, including in other Mac applications. Source review confirmed that the old automatic policy could suppress real images carrying text metadata within Hermes. The code has no system-clipboard writes or listeners in other applications, so this finding does not establish the cause of the reported cross-application failure.
+
+Version 1.1.0 removes persistent automatic conversion. Filtering is installed only after an explicit one-shot request, is consumed on the next eligible paste, and cancels on window blur, Escape, timeout, second click or unload. Tests confirm that ordinary image-plus-caption/filename paste remains native even when the old `enabled=true` preference exists.
+
+At the time of this review, Hermes showed a backend startup failure (missing runtime dependencies during an update). Fresh end-to-end verification in its composer was therefore unavailable. The 1.1.0 results are automated DOM/React checks, not a claim of new live Word/Hermes or system-wide WeChat verification.
+
+After installing 1.1.0 and copying an image again, the user confirmed that WeChat displayed an image preview. This confirms recovery in that test, but does not establish that the plugin had modified the system clipboard; the update and fresh copy both preceded the verification.
