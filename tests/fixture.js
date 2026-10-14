@@ -206,7 +206,7 @@ window.__testPromise = (async () => {
     assert(draft === '重新加载' && hostPasteCount === 1 && !attachmentCount, 'reload duplicated')
     dispose()
   })
-  const settings = new Map()
+  const settings = new Map([['enabled', true]]) // old persisted preference
   let contribution
   plugin.register({
     storage: { get: (key, fallback) => settings.has(key) ? settings.get(key) : fallback,
@@ -215,26 +215,97 @@ window.__testPromise = (async () => {
   })
   const statusRoot = createRoot(document.querySelector('#status-root'))
   statusRoot.render(contribution.render())
-  await new Promise(resolve => setTimeout(resolve, 30))
-  await test('real plugin registration mounts enabled status button and filter', () => {
+  const settle = () => new Promise(resolve => setTimeout(resolve, 20))
+  const clickStatus = async () => {
+    document.querySelector('#status-root button').click()
+    await settle()
+  }
+  const armed = () => document.querySelector('#status-root button').getAttribute('aria-pressed') === 'true'
+  await settle()
+  await test('mounted plugin leaves ordinary image plus caption on native path', () => {
     assert(plugin.id === 'word-plain-paste' && contribution.area === 'statusBar.right', 'invalid registration')
-    reset(); paste(data('插件已开启'))
-    assert(draft === '插件已开启' && !attachmentCount, 'mounted plugin inactive')
+    reset(); paste(data('image caption or source URL'))
+    assert(attachmentCount === 1 && !draft && !armed(), 'ordinary image converted to text')
   })
-  await test('status toggle pauses filtering and persists setting', async () => {
-    document.querySelector('#status-root button').click()
-    await new Promise(resolve => setTimeout(resolve, 20))
-    reset(); paste(data('已暂停'))
-    assert(attachmentCount === 1 && settings.get('enabled') === false, 'toggle did not pause')
+  await test('old enabled preference cannot restore automatic conversion', () => {
+    assert(settings.get('enabled') === true && !armed(), 'legacy preference enabled conversion')
+    reset(); paste(data('picture.png'))
+    assert(attachmentCount === 1 && !draft, 'image filename became text')
   })
-  await test('status toggle re-enables filtering', async () => {
-    document.querySelector('#status-root button').click()
-    await new Promise(resolve => setTimeout(resolve, 20))
-    reset(); paste(data('重新开启'))
-    assert(draft === '重新开启' && settings.get('enabled') === true, 'toggle did not resume')
+  await test('explicit one-shot request converts a Word mixed paste', async () => {
+    await clickStatus(); assert(armed(), 'request not armed')
+    reset(); paste(data('Word 文字仅转换一次'))
+    await settle()
+    assert(draft === 'Word 文字仅转换一次' && !attachmentCount && !armed(), 'one-shot conversion failed')
   })
-  await test('unmount removes all paste interception', () => {
-    statusRoot.unmount(); reset(); paste(data('禁用插件'))
+  await test('paste after one-shot conversion keeps image with metadata', () => {
+    reset(); paste(data('图片的说明文字'))
+    assert(attachmentCount === 1 && !draft && hostPasteCount === 1, 'subsequent image converted')
+  })
+  await test('one-shot request is consumed even by a pure screenshot', async () => {
+    await clickStatus(); reset(); paste(data(null)); await settle()
+    assert(attachmentCount === 1 && !armed(), 'screenshot swallowed or request retained')
+    reset(); paste(data('图片标题'))
+    assert(attachmentCount === 1 && !draft, 'screenshot left conversion armed')
+  })
+  await test('one-shot request is consumed even by ordinary text', async () => {
+    await clickStatus(); reset(); paste(data('纯文本', { image: false })); await settle()
+    assert(draft === '纯文本' && !armed(), 'plain text did not consume request')
+    reset(); paste(data('下一张图片'))
+    assert(attachmentCount === 1 && !draft, 'plain text left conversion armed')
+  })
+  await test('two immediate paste events cannot reuse one request', async () => {
+    await clickStatus(); reset()
+    paste(data('第一次'))
+    paste(data('第二次图片的标题'))
+    assert(hostPasteCount === 2 && draft === '第一次' && attachmentCount === 1, 'request reused before React cleanup')
+    await settle()
+  })
+  await test('clicking again cancels the text request', async () => {
+    await clickStatus(); assert(armed(), 'request not armed')
+    await clickStatus(); assert(!armed(), 'second click did not cancel')
+    reset(); paste(data('图片说明'))
+    assert(attachmentCount === 1 && !draft, 'cancelled request still active')
+  })
+  await test('switching apps cancels the request', async () => {
+    await clickStatus()
+    window.dispatchEvent(new Event('blur')); await settle()
+    assert(!armed(), 'blur did not cancel')
+    reset(); paste(data('切换应用后的图片'))
+    assert(attachmentCount === 1 && !draft, 'request survived app switch')
+  })
+  await test('Escape cancels the request', async () => {
+    await clickStatus()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle()
+    assert(!armed(), 'Escape did not cancel')
+  })
+  await test('request expires after the configured 30 seconds', async () => {
+    const original = window.setTimeout
+    let expire
+    window.setTimeout = (callback, delay, ...args) => {
+      if (delay === 30000) expire = callback
+      return original.call(window, callback, delay, ...args)
+    }
+    try {
+      await clickStatus()
+      assert(armed() && typeof expire === 'function', 'expiry not scheduled')
+      expire(); await settle()
+      assert(!armed(), 'expiry did not cancel')
+    } finally { window.setTimeout = original }
+  })
+  await test('armed filter still ignores unrelated input fields', async () => {
+    await clickStatus()
+    let received
+    const other = document.querySelector('#other')
+    const original = data('其他应用样式输入框中的图片说明')
+    other.addEventListener('paste', event => { received = event.clipboardData }, { once: true })
+    paste(original, other)
+    assert(received === original && received.files.length === 1, 'unrelated input modified')
+    await clickStatus()
+  })
+  await test('unmount while armed removes all interception', async () => {
+    await clickStatus(); statusRoot.unmount()
+    reset(); paste(data('卸载后的图片说明'))
     assert(attachmentCount === 1 && !draft, 'unmount listener leaked')
   })
   editorRoot.unmount()
