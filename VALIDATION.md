@@ -1,11 +1,11 @@
 # Validation
 
-Version: 1.0.0. Date: 2026-10-14.
+Version: 1.0.1. Date: 2026-10-14.
 
 ## Automated
 
 - JavaScript syntax check and zsh syntax checks passed.
-- All 22 React/jsdom event-routing and lifecycle checks passed.
+- All 28 React/jsdom event-routing and lifecycle checks passed.
 - Install scripts passed clean installation, repeated installation, modified-file refusal, safe uninstall, and preservation of unrelated files.
 
 These tests model the host's image-first paste branch and draft/undo callbacks. Clipboard constructors and the DOM editing command are test doubles. They verify routing and lifecycle, rather than proving OS clipboard compatibility on every Hermes version.
@@ -29,3 +29,9 @@ Environment: macOS, Microsoft Word for Mac, Hermes Desktop v0.19.1.
 - The separately launched Electron harness exited with SIGABRT in the restricted authoring environment. It is available for reproduction but was not marked passed.
 - Runtime loading uses Hermes's supported disk-plugin mechanism; clipboard filtering relies on an internal DOM marker that may change in future versions.
 - Future Hermes releases may change their own large-paste, reference, or undo behavior; this plugin delegates those operations to the host.
+
+## 1.0.1 review
+
+Two added regression tests first failed on 1.0.0: an unhandled forwarded event swallowed the original paste, and a non-cancelable original event caused duplicate handling. Version 1.0.1 forwards first and cancels the original only after the host prevents the replacement's default; it skips non-cancelable originals. Both regressions and all existing checks pass after the fix.
+
+The separate real Word → Hermes verification above was performed on 1.0.0. Version 1.0.1 preserves the same accepted-event path and adds failure fallbacks; the revised version's automated results do not imply fresh manual verification unless recorded separately.

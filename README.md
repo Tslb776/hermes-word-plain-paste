@@ -9,7 +9,7 @@ When clipboard data contains **both meaningful text and an image representation*
 ## Install on macOS
 
 1. Download this repository using **Code → Download ZIP** and extract it.
-2. Double-click **install.command**. If Finder does not launch it, open Terminal in this folder and run `zsh install.command`.
+2. Open Terminal in the extracted folder and run **`zsh install.command`**. GitHub's source ZIP may not preserve executable flags, so this is the reliable way to launch the installer.
 3. Look for **Word 文字粘贴 ✓** in the Hermes status bar. Continue copying from Word and pasting with `⌘V`.
 
 Hermes normally loads disk plugins automatically. If the status button does not appear, press `⌘K` in Hermes and run **Reload desktop plugins**, or restart Hermes.
@@ -22,6 +22,8 @@ cp -R word-plain-paste "${HERMES_HOME:-$HOME/.hermes}/desktop-plugins/"
 ```
 
 The plugin folder must remain named `word-plain-paste`. For a custom Hermes home, set `HERMES_HOME` before running the installer or copy the folder into that home's `desktop-plugins` directory.
+
+**Upgrading:** uninstall using the previous package first, then install the new package. If you customized any plugin files, back up and move the existing plugin folder before installing; the installer intentionally refuses to overwrite a different version.
 
 ## Controls and behavior
 
@@ -65,7 +67,7 @@ npm install
 npm test
 ```
 
-The included suite has **22 passing DOM/React integration checks** covering the reproduced bug, mixed flavors, HTML image representations, Chinese/emoji/multiline/large text, selected text, clipboard immutability, ordinary screenshots, toggling, persistence, reload, and cleanup.
+The included suite has **28 passing DOM/React integration checks** covering the reproduced bug, mixed flavors, HTML image representations, Chinese/emoji/multiline/large text, selected text, clipboard immutability, ordinary screenshots, toggling, persistence, reload, cleanup, unhandled forwarded events, non-cancelable events, and clipboard-constructor failures.
 
 DOM tests use real React and jsdom. Clipboard constructors and the editing command are narrow test doubles; they are not OS clipboard end-to-end tests. See [VALIDATION.md](VALIDATION.md) for the separate real Word → Hermes verification.
 
@@ -75,10 +77,19 @@ An optional standalone Electron test harness is included. Install Electron separ
 
 这是一个 **Hermes 桌面版社区插件**，解决 Mac 上从 Word 复制文字，粘到 Hermes 后变成图片的问题。复制内容同时包含文字和图片时，优先把文字交给 Hermes 的原有粘贴处理器；只复制截图时保留图片处理。
 
-安装：点击本页 **Code → Download ZIP**，解压后双击 `install.command`。状态栏出现 **Word 文字粘贴 ✓** 后，照常使用 `⌘C → ⌘V` 即可。若未出现，在 Hermes 按 `⌘K`，执行 **Reload desktop plugins**。
+安装：点击本页 **Code → Download ZIP**，解压后在该文件夹中打开终端，运行 `zsh install.command`。GitHub 的源码 ZIP 可能不保留脚本执行权限，因此推荐这种启动方式。状态栏出现 **Word 文字粘贴 ✓** 后，照常使用 `⌘C → ⌘V` 即可。若未出现，在 Hermes 按 `⌘K`，执行 **Reload desktop plugins**。
 
 点击状态栏按钮可暂停/开启。需要粘贴文字中嵌入的真实图片时，请先暂停或单独复制图片。卸载时双击 `uninstall.command`，也可在 Hermes 插件设置中禁用。
 
 已经在 Hermes v0.19.1 实测 Word 三行中文粘贴和整次撤销。上游已有修复 PR，但截至 2026-10-14 尚未合并；最新主分支仍会在混合粘贴时附加图片，所以这个插件目前仍有用途。它不联网、不记录剪贴板文字、不需要辅助功能权限。
 
 如遇兼容问题，请在本仓库提交 issue，说明 macOS、Hermes、Word 版本及粘贴的是普通段落还是表格；可用非敏感测试文本复现。
+
+## Changelog
+
+### 1.0.1
+
+- Retain the original paste if the host does not accept the forwarded text-only event.
+- Leave non-cancelable paste events untouched to avoid duplicate handling.
+- Add six regression checks; 28 DOM/React checks pass.
+- Clarify how to run installers downloaded in GitHub's source ZIP.
