@@ -131,6 +131,67 @@ window.__testPromise = (async () => {
     paste(original)
     assert(original.files.length === 1 && original.getData('text/html') === '<b>保持剪贴板</b>', 'original mutated')
   })
+  await test('unhandled replacement preserves the original paste', () => {
+    const unhandled = document.createElement('div')
+    unhandled.setAttribute('data-slot', 'composer-rich-input')
+    unhandled.setAttribute('contenteditable', 'true')
+    document.body.append(unhandled)
+    let originalReceived = 0
+    unhandled.addEventListener('paste', event => {
+      if (event.clipboardData?.files.length) originalReceived++
+    })
+    const event = paste(data('宿主未处理时不能吞掉原粘贴'), unhandled)
+    unhandled.remove()
+    assert(!event.defaultPrevented && originalReceived === 1, 'unhandled replacement swallowed the original')
+  })
+  await test('non-cancelable original is not forwarded twice', () => {
+    reset()
+    const event = new ClipboardEvent('paste', {
+      clipboardData: data('不可取消事件'), bubbles: true, cancelable: false
+    })
+    editor.dispatchEvent(event)
+    assert(hostPasteCount === 1 && attachmentCount === 1 && !draft, 'non-cancelable event handled twice')
+  })
+  await test('unavailable DataTransfer preserves native image path', () => {
+    reset(); const original = window.DataTransfer
+    const clipboard = data('构造器不可用')
+    try {
+      window.DataTransfer = class { constructor() { throw new Error('unsupported') } }
+      paste(clipboard)
+      assert(hostPasteCount === 1 && attachmentCount === 1 && !draft, 'constructor failure swallowed paste')
+    } finally { window.DataTransfer = original }
+  })
+  await test('replacement constructor that drops data preserves native path', () => {
+    reset(); const OriginalEvent = window.ClipboardEvent
+    const clipboard = data('替换事件丢失数据')
+    const nativeEvent = new OriginalEvent('paste', {
+      clipboardData: clipboard, bubbles: true, cancelable: true
+    })
+    try {
+      window.ClipboardEvent = class extends OriginalEvent {
+        constructor(type, options) { super(type, { ...options, clipboardData: null }) }
+      }
+      editor.dispatchEvent(nativeEvent)
+      assert(hostPasteCount === 1 && attachmentCount === 1 && !draft, 'dropped replacement data swallowed paste')
+    } finally { window.ClipboardEvent = OriginalEvent }
+  })
+  await test('files-only image representation also preserves mixed text', () => {
+    assert(textForMixedPaste({
+      items: [], files: [image], getData: type => type === 'text/plain' ? '仅 files 中有图片' : ''
+    }) === '仅 files 中有图片', 'files-only image representation missed')
+  })
+  await test('clipboard getData failure does not cancel original', () => {
+    const target = document.createElement('div')
+    target.setAttribute('data-slot', 'composer-rich-input')
+    target.setAttribute('contenteditable', 'true')
+    document.body.append(target)
+    const event = new ClipboardEvent('paste', {
+      bubbles: true, cancelable: true,
+      clipboardData: { getData() { throw new Error('clipboard unavailable') } }
+    })
+    target.dispatchEvent(event); target.remove()
+    assert(!event.defaultPrevented, 'clipboard read failure swallowed paste')
+  })
   await test('missing clipboard data fails open', () => {
     reset(); paste(null)
     assert(textForMixedPaste(null) === null, 'null did not pass through')
